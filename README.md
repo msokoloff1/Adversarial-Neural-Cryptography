@@ -12,7 +12,9 @@
       * For additional options:
       ``` * python3 Main.py -h ```
       
-   
+* In progress:
+ * Exploring additional improvements and use cases
+ * Performing analysis on results
    
    
 ######Dependencies:
