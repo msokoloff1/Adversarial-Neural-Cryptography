@@ -2,6 +2,9 @@
 
 -Based on the paper <a href="https://openreview.net/pdf?id=S1HEBe_Jl">Learning to Protect Communications with Adversarial Neural Cryptography></a>
 
+
+<img src = "analysis/original_results.png"><img>
+
 ####Status:
 * The code achieves the same results as in the paper
   * To Run:
@@ -10,12 +13,13 @@
     2. python3 Main.py
   ```
       * For additional options:
-      ``` * python3 Main.py -h ```
+      ``` python3 Main.py -h ```
       
 * In progress:
  * Exploring additional improvements and use cases
  * Performing analysis on results
-   
+ 
+
    
 ######Dependencies:
 ```
