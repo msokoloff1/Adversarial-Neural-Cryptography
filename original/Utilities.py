@@ -10,7 +10,7 @@ class log():
         info   = '|'.join(["%s-%s"%(str(x[0]),str(x[1])) for x in details])
         header = ','.join(['Iteration','Alice-Bob/Loss','EveLoss', 'EveIncorrect', 'Alice/Bob-Incorrect', 'RunNumber'])
         self.time   = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H_%M_%S')
-        self.index = len(os.listdir())
+        self.index = len(os.listdir('logs'))
         with open('logs/log' + self.time +'.txt', 'a') as file:
             file.write(info +  '\n')
             file.write(header + '\n')

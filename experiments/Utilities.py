@@ -3,12 +3,14 @@ import threading
 import numpy as np
 import time
 import datetime
+import os
 
 class log():
     def __init__(self, details, fileName = 'log.txt'):
         info   = '|'.join(["%s-%s"%(str(x[0]),str(x[1])) for x in details])
         header = ','.join(['iteration,abLoss,eLoss', 'eveIncorrect', 'abIncorrect'])
         self.time   = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H_%M_%S')
+        self.index = len(os.listdir('logs'))
         with open('logs/log' + self.time + '.txt', 'a') as file:
             file.write(info +  '\n')
             file.write(header + '\n')
@@ -16,7 +18,7 @@ class log():
     def writeToFile(self, listOfParams):
         assert len(listOfParams) == 5, "Parameter list has too many/missing elements"
         with open('logs/log' + self.time + '.txt', 'a') as file:
-            file.write(','.join([str(x) for x in listOfParams]) +  '\n')
+            file.write(','.join([str(x) for x in listOfParams]) + ','+str(self.index) +'\n')
       
 def ensureRank2(input):
     """Ensures the input tensor has a rank of 2, otherwise it reshapes the tensor"""

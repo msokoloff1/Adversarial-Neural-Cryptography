@@ -5,6 +5,7 @@ class Network():
     def __init__(self, messageLength, name):
         """ Acts as an abstract class to improve code reusability"""
         self._inputMessage = tf.placeholder(tf.float32, [None,messageLength])
+        self.messageLength = messageLength
         self.name = name
 
     def _convLayer1D(self, input, numOutputChannels, filterWidth, stride, name, pad = 'SAME',activation = tf.nn.sigmoid, bias = False):
@@ -63,6 +64,28 @@ class Network():
         self.apply_grads = optimizer.apply_gradients(zip(grads, networkParams))
         return self.apply_grads
 
+
+    def recurrentLayer(self,input, numLayers):
+        state_size = 100
+        num_classes = 2
+        embeddings = tf.get_variable('embedding_matrix', [num_classes, state_size])
+        init_state = cell.zero_state(batch_size, tf.float32)
+        rnn_inputs = tf.nn.embedding_lookup(embeddings, input)
+        cell = tf.nn.rnn_cell.LSTMCell(state_size, state_is_tuple=True)
+        cell = tf.nn.rnn_cell.MultiRNNCell([cell] * numLayers, state_is_tuple=True)
+        init_state = cell.zero_state(batch_size, tf.float32)
+        rnn_outputs, final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
+        with tf.variable_scope('softmax'):
+            W = tf.get_variable('W', [state_size, num_classes])
+            b = tf.get_variable('b', [num_classes], initializer=tf.constant_initializer(0.0))
+
+        rnn_outputs = tf.reshape(rnn_outputs, [-1, state_size])
+        logits = tf.matmul(rnn_outputs, W) + b
+        
+        return logits
+                
+            
+
 class Encoder(Network):
     def __init__(self, messageLength, name):
         """Used to encode a message that cannot be understood by anyone except the desired recipient"""
@@ -72,7 +95,7 @@ class Encoder(Network):
         combinedInput = self._combineKeyAndText(self._inputKey, messageLength)
         with tf.variable_scope(name) as scope:
             conv1 = self._convLayer1D(combinedInput, numOutputChannels=16, filterWidth=4, stride=1, name='a_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=1, name='a_conv2')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='a_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='a_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='a_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
@@ -87,7 +110,7 @@ class Decoder(Network):
         combinedInput = self._combineKeyAndText(self._inputKey, messageLength)
         with tf.variable_scope(name) as scope:
             conv1 = self._convLayer1D(combinedInput,   numOutputChannels=16, filterWidth=4, stride=1, name='b_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=1, name='b_conv2')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='b_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='b_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='b_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
@@ -100,7 +123,7 @@ class UnauthDecoder(Network):
         self._inputMessage = utils.ensureRank3(alice.output)
         with tf.variable_scope(name) as scope:
             conv1 = self._convLayer1D(self._inputMessage, numOutputChannels=16, filterWidth=4, stride=1, name='e_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=1, name='e_conv2')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='e_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='e_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='e_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0

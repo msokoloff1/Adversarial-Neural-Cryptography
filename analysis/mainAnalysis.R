@@ -33,6 +33,7 @@ plotIter1 <- ggplot(dataIter1, aes(x=iteration, y=abIncorrect)) +
     ggtitle("First iteration results")
 
     
+plot(plotIter1)
        
 #multiplot(plotIter1, plotIter2, plotIter3, plotIter4, cols=2)
 

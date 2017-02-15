@@ -40,7 +40,7 @@ turnGen = utils.getTurn(  alice.getUpdateOp(aliceAndBobLoss, optimizer)
                         )
 
 """Instantiate logger, provide command line args for context"""
-logger = utils.log(details = args._get_kwargs())
+logger = utils.log(details = args._get_kwargs(), fileName = "pureConvLog.txt")
 
 """Begin training loop"""
 def train(numIters):
