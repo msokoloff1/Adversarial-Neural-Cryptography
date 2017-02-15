@@ -55,15 +55,8 @@ plotIter2 <- ggplot(combinedData, aes(x=Iteration, y=EveIncorrect, group = RunNu
   ggtitle("Eve Reconstruction Accuracy (Results using Abadi et al. architecture)")
 
 
-
-<<<<<<< HEAD
-    
-plot(plotIter1)
-       
-#multiplot(plotIter1, plotIter2, plotIter3, plotIter4, cols=2)
-=======
 multiplot(plotIter1, plotIter2,cols=1)
->>>>>>> 9dfb9a614f6b31a4b6f5d61cdcaef63920fc2e17
+
 
 ### Take the average over different length messages. Create box plots to compare.
 ###Do the same for different optimizers, etc. 
