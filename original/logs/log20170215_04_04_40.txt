@@ -1,3 +1,4 @@
+conv 16,8,4,1
 batch_size-4096|learning_rate-0.0008|message_length-16|num_iters-10000|optimizer-Adam
 Iteration,Alice-Bob/Loss,EveLoss,EveIncorrect,Alice/Bob-Incorrect,RunNumber
 0,2.25831,0.499385,0.499385,0.500212,1

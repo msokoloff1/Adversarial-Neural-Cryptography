@@ -25,9 +25,9 @@ elif(args.optimizer.lower() == 'rmsprop'):
     optimizer = tf.train.RMSPropOptimizer(args.learning_rate)
 
 """Instantiate nets"""
-alice = nets.Encoder(args.message_length , 'aliceNet')
-bob   = nets.Decoder(args.message_length   , alice ,'aliceNet')
-eve   = nets.UnauthDecoder(args.message_length   , alice ,'aliceNet')
+alice = nets.Encoder(args.message_length , 'aliceNet', args.batch_size)
+bob   = nets.Decoder(args.message_length   , alice ,'aliceNet', args.batch_size)
+eve   = nets.UnauthDecoder(args.message_length   , alice ,'aliceNet', args.batch_size)
 
 """Calculate loss metrics"""
 aliceAndBobLoss =utils.getBobAliceLoss(bob, eve, alice, args.message_length)
@@ -47,7 +47,11 @@ def train(numIters):
     with tf.Session() as sess:
         dataGen    = utils.getData(args.message_length, args.batch_size)
         logMetrics = utils.getLoggingMetrics(bob, eve, alice)
-        sess.run(tf.global_variables_initializer())
+        try:
+            sess.run(tf.global_variables_initializer())
+        except:
+            print("TF version does not support global initializer")
+            sess.run(tf.initialize_all_variables())
         
         for iter in range(args.num_iters):
             data = next(dataGen)

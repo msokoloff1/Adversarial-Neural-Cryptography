@@ -1,0 +1,13 @@
+1. Does eve need to be the same complexity as the alice and bob?
+    * Does a more complex eve do better than alice and bob?
+    * Does a more complex alice and bob do better than a less complex eve?
+
+2. Build wrapper so that you can pass json to each function to create the nets.
+    * Build test cases.
+    * Find a way to include more information about the logs. Also pass in a directory for each log. Maybe with an overview file
+    * End results should be a single script that kicks off a bunch of test cases that can be analyzed by the r scripts
+
+3. Add support for ohe text inputs.
+
+
+

@@ -2,11 +2,12 @@ import tensorflow as tf
 import Utilities as utils
 
 class Network():
-    def __init__(self, messageLength, name):
+    def __init__(self, messageLength, name, batchSize):
         """ Acts as an abstract class to improve code reusability"""
         self._inputMessage = tf.placeholder(tf.float32, [None,messageLength])
         self.messageLength = messageLength
         self.name = name
+        self.batchSize = batchSize
 
     def _convLayer1D(self, input, numOutputChannels, filterWidth, stride, name, pad = 'SAME',activation = tf.nn.sigmoid, bias = False):
         """ Creates a layer that applies a one dimensional convolutional filter to the input"""
@@ -65,65 +66,81 @@ class Network():
         return self.apply_grads
 
 
-    def recurrentLayer(self,input, numLayers):
-        state_size = 100
-        num_classes = 2
-        embeddings = tf.get_variable('embedding_matrix', [num_classes, state_size])
-        init_state = cell.zero_state(batch_size, tf.float32)
-        rnn_inputs = tf.nn.embedding_lookup(embeddings, input)
-        cell = tf.nn.rnn_cell.LSTMCell(state_size, state_is_tuple=True)
-        cell = tf.nn.rnn_cell.MultiRNNCell([cell] * numLayers, state_is_tuple=True)
-        init_state = cell.zero_state(batch_size, tf.float32)
-        rnn_outputs, final_state = tf.nn.dynamic_rnn(cell, rnn_inputs, initial_state=init_state)
-        with tf.variable_scope('softmax'):
-            W = tf.get_variable('W', [state_size, num_classes])
-            b = tf.get_variable('b', [num_classes], initializer=tf.constant_initializer(0.0))
+    def recurrentLayer(self,input, numLayers, name):
+        with tf.variable_scope(name) as scope:
+            print("Input shape:")
+            print(input.get_shape())
+            state_size = 1 #Number of output classes, change for ohe outputs
+            batch_size = 4096
+            cell = tf.nn.rnn_cell.LSTMCell(state_size, state_is_tuple=True)
+            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * numLayers, state_is_tuple=True)
+            init_state = cell.zero_state(batch_size, tf.float32)
+            rnn_outputs, final_state = tf.nn.dynamic_rnn(cell, input, initial_state=init_state)
+            rnn_outputs = tf.reshape(rnn_outputs, [-1, self.messageLength])
+            return rnn_outputs
 
-        rnn_outputs = tf.reshape(rnn_outputs, [-1, state_size])
-        logits = tf.matmul(rnn_outputs, W) + b
-        
-        return logits
-                
-            
+    def dictNetBuilder(self, dictionary):
+        #Expects combinedInput to already exist:
+        #It could be a key/message pair or just the cyphertext
+        prevLayer = self.combinedInput
+        for layer in dictionary['layers']:
+            if(layer['type'] == 'fc'):
+                layer = self._fcLayer(prevLayer, layer['numOutputs'], layer['name'])
+                prevLayer = layer
+                pass
+            elif(layer['type'] == 'conv'):
+                layer = self._convLayer1D(prevLayer,layer['numOutputs'], layer['filterWidth'], layer['stride'], layer['name'])
+                prevLayer = layer
+            elif(layer['type'] == 'recurrent'):
+                layer = self.recurrentLayer(prevLayer, layer['numRecurrentLayers'], layer['name'])
+                prevLayer = layer
+
+        self.output = (prevLayer + 1.0) / 2.0
+
+
 
 class Encoder(Network):
-    def __init__(self, messageLength, name):
+    def __init__(self, messageLength, name, batchSize):
         """Used to encode a message that cannot be understood by anyone except the desired recipient"""
-        super().__init__(messageLength,name)
+        super().__init__(messageLength,name, batchSize)
         print("Alice Instantiated")
         self._inputKey = tf.placeholder(tf.float32, [None, messageLength], name ="alicePH")
         combinedInput = self._combineKeyAndText(self._inputKey, messageLength)
         with tf.variable_scope(name) as scope:
-            conv1 = self._convLayer1D(combinedInput, numOutputChannels=16, filterWidth=4, stride=1, name='a_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='a_conv2')
+            fullConnection = self._fcLayer(combinedInput, messageLength, "fc1")
+            recurrent = self.recurrentLayer(fullConnection,2, "EncoderRecurrent")
+            conv2 = self._convLayer1D(recurrent, numOutputChannels=8, filterWidth=2, stride=1, name='a_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='a_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='a_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
-            
+
 class Decoder(Network):
-    def __init__(self, messageLength, alice,  name):
+    def __init__(self, messageLength, alice,  name, batchSize):
         """Used to decode a message that can only be understood by this network"""
-        super().__init__(messageLength,name)
+        super().__init__(messageLength,name, batchSize)
         print("Bob Instantiated")
         self._inputMessage = alice.output
         self._inputKey = alice._inputKey
         combinedInput = self._combineKeyAndText(self._inputKey, messageLength)
         with tf.variable_scope(name) as scope:
-            conv1 = self._convLayer1D(combinedInput,   numOutputChannels=16, filterWidth=4, stride=1, name='b_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='b_conv2')
+            fullConnection = self._fcLayer(combinedInput, messageLength, "fc1")
+            recurrent = self.recurrentLayer(fullConnection, 2, "DecoderRecurrent")
+            conv2 = self._convLayer1D(recurrent, numOutputChannels=8, filterWidth=2, stride=1, name='b_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='b_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='b_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
 
+
 class UnauthDecoder(Network):
-    def __init__(self, messageLength, alice, name):
+    def __init__(self, messageLength, alice, name, batchSize):
         """Attempts to decrypt the ciphartext without authorization"""
-        super().__init__(messageLength, name)
+        super().__init__(messageLength, name, batchSize)
         print("Eve Instantiated")
         self._inputMessage = utils.ensureRank3(alice.output)
         with tf.variable_scope(name) as scope:
-            conv1 = self._convLayer1D(self._inputMessage, numOutputChannels=16, filterWidth=4, stride=1, name='e_conv1')
-            conv2 = self._convLayer1D(conv1, numOutputChannels=8, filterWidth=2, stride=1, name='e_conv2')
+            fullConnection = self._fcLayer(self._inputMessage, messageLength, "fc1")
+            recurrent = self.recurrentLayer(fullConnection, 2, "UnathorizedRecurrent")
+            conv2 = self._convLayer1D(recurrent, numOutputChannels=8, filterWidth=2, stride=1, name='e_conv2')
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='e_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='e_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
