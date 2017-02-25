@@ -1,7 +1,0 @@
-#Net architectures:
-* Add bias
-* Add instance normalization
-* Add recurrent cells
-
-#Try to build ohe version for entire message instead of bits
-* Use nets that understand language structure. (ie predict words from previous language understanding)

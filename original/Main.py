@@ -47,7 +47,7 @@ def train(numIters):
     with tf.Session() as sess:
         dataGen    = utils.getData(args.message_length, args.batch_size)
         logMetrics = utils.getLoggingMetrics(bob, eve, alice)
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.initialize_all_variables())
         
         for iter in range(args.num_iters):
             data = next(dataGen)
