@@ -41,7 +41,7 @@ def getBobAliceLoss(bob, eve, alice, messageLength):
     conversationLoss = tf.abs(bobOutput - alice._inputMessage)
     eveLoss   = tf.reduce_mean(tf.abs(eveOutput - alice._inputMessage))
     snoopLoss = tf.reduce_mean(tf.div(tf.pow( ((messageLength/2)-eveLoss),2), tf.pow((messageLength/2),2)))
-    totalLoss = conversationLoss + 2 * snoopLoss
+    totalLoss = conversationLoss + 7 * snoopLoss
     return totalLoss
 
 def getLoggingMetrics(bob, eve, alice):
