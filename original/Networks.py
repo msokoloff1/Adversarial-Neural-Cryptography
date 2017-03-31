@@ -17,6 +17,29 @@ class Network():
             if (bias):
                 conv = conv + self._bias(numOutputChannels)
             return activation(conv)
+      
+    def _convLayer2D(self, input, outputFilters, filterDimX,filterDimY, strides, name, activation=tf.nn.elu):
+        with tf.variable_scope(name):
+            inputDim = int(input.get_shape()[-1])
+            xavierAbs = tf.div(1., tf.sqrt(float(inputDim) * (filterDimX * filterDimY)))
+            shape = [filterDimX, filterDimY, inputDim, outputFilters]
+
+            weights = tf.Variable(tf.random_uniform(
+                shape
+                , minval=-xavierAbs
+                , maxval=xavierAbs
+            ))
+
+
+            bias = tf.Variable(tf.random_uniform(
+                [outputFilters]
+                , minval=-xavierAbs
+                , maxval=xavierAbs
+            ))
+
+            conv = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1], padding="VALID")
+            return activation(conv + bias)
+   
 
     def _weightVar(self, shape):
         """ Helper function for generating a weight tensor"""
@@ -101,4 +124,58 @@ class UnauthDecoder(Network):
             conv3 = self._convLayer1D(conv2, numOutputChannels=4, filterWidth=1, stride=1, name='e_conv3')
             conv4 = self._convLayer1D(conv3, numOutputChannels=1, filterWidth=1, stride=1, name='e_conv4', activation = tf.nn.tanh)
             self.output = (conv4 + 1) /2.0
+
+            
+            
+ 
+class EncoderVariant(Network):
+    def __init__(self, messageLength, name):
+        """Used to encode a message that cannot be understood by anyone except the desired recipient"""
+        super().__init__(messageLength,name)
+        print("Alice Instantiated")
+        self._inputKey = tf.placeholder(tf.float32, [None, messageLength], name ="alicePH")
+        combinedInput = self._combineKeyAndTextRank4(self._inputKey, messageLength)
+        with tf.variable_scope(name) as scope:
+            layer1 = self._convLayer2D(combinedInput, 4, 1, 2, 1, "a_conv2d_input")
+            shapes = layer1.get_shape()[1:]
+            fc1 = self._fcLayer(tf.reshape(layer1, [-1, int(np.prod(shapes))]), messageLength * 2, 'a_fc1')
+            conv1 = self._convLayer1D(fc1,   numOutputChannels=2, filterWidth=4, stride=1, name='a_conv1')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=2, name='a_conv2')
+            conv3 = self._convLayer1D(conv2, numOutputChannels=2, filterWidth=1, stride=1, name='a_conv3', activation= tf.nn.tanh)
+            self.output = (conv3 + 1) / 2.0
+
+
+
+class DecoderVariant(Network):
+    def __init__(self, messageLength, alice,  name):
+        """Used to decode a message that can only be understood by this network"""
+        super().__init__(messageLength,name)
+        print("Bob Instantiated")
+        self._inputMessage = alice.output
+        self._inputKey = alice._inputKey
+        combinedInput = self._combineKeyAndTextRank4(self._inputKey, messageLength)
+        with tf.variable_scope(name) as scope:
+            layer1 = self._convLayer2D(combinedInput, 4, 1, 2, 1, "b_conv2d_input")
+            shapes = layer1.get_shape()[1:]
+            fc1 = self._fcLayer(tf.reshape(layer1, [-1, int(np.prod(shapes))]), messageLength * 2, 'b_fc1')
+            conv1 = self._convLayer1D(fc1,   numOutputChannels=2, filterWidth=4, stride=1, name='b_conv1')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=2, name='b_conv2')
+            conv3 = self._convLayer1D(conv2, numOutputChannels=1, filterWidth=1, stride=1, name='b_conv3', activation= tf.nn.tanh)
+            self.output = (conv3 + 1) / 2.0
+
+
+class UnauthDecoderVariant(Network):
+    def __init__(self, messageLength, alice, name):
+        """Attempts to decrypt the ciphartext without authorization"""
+        super().__init__(messageLength, name)
+        print("Eve Instantiated")
+        self._inputMessage = tf.expand_dims(utils.ensureRank3(alice.output),3)
+        with tf.variable_scope(name) as scope:
+            layer1 = self._convLayer2D(self._inputMessage, 4, 1, 2, 1, "e_conv2d_input")
+            shapes = layer1.get_shape()[1:]
+            fc1 = self._fcLayer(tf.reshape(layer1, [-1, int(np.prod(shapes))]), messageLength * 2, 'e_fc1')
+            conv1 = self._convLayer1D(fc1, numOutputChannels=2, filterWidth=4, stride=1, name='e_conv1')
+            conv2 = self._convLayer1D(conv1, numOutputChannels=4, filterWidth=2, stride=2, name='e_conv2')
+            conv3 = self._convLayer1D(conv2, numOutputChannels=1, filterWidth=1, stride=1, name='e_conv3', activation= tf.nn.tanh)
+            self.output = (conv3 + 1) / 2.0
 
