@@ -19,7 +19,7 @@ class log():
         assert len(listOfParams) == 5, "Parameter list has too many/missing elements"
         with open('logs/log' + self.time + '.txt', 'a') as file:
             file.write(','.join([str(x) for x in listOfParams]) + ','+str(self.index) +'\n')
-      
+
 def ensureRank2(input):
     """Ensures the input tensor has a rank of 2, otherwise it reshapes the tensor"""
     if (len(input.get_shape()) == 3):
@@ -46,11 +46,14 @@ def getBobAliceLoss(bob, eve, alice, messageLength):
 
 def getLoggingMetrics(bob, eve, alice):
     """Calculates the accuracy for bob and eve and it is returned as a tensor for logging"""
-    eveOutput = ensureRank2(eve.output)
-    answer    = ensureRank2(alice._inputMessage)
-    bobOutput = ensureRank2(bob.output)
-    eveIncorrect = tf.reduce_mean(tf.abs(eveOutput - answer))
-    bobIncorrect = tf.reduce_mean(tf.abs(bobOutput - answer))
+    with tf.name_scope('performance'):
+        eveOutput = ensureRank2(eve.output)
+        answer    = ensureRank2(alice._inputMessage)
+        bobOutput = ensureRank2(bob.output)
+        eveIncorrect = tf.reduce_mean(tf.abs(eveOutput - answer))
+        bobIncorrect = tf.reduce_mean(tf.abs(bobOutput - answer))
+        tf.summary.scalar('eve-Incorrect', eveIncorrect)
+        tf.summary.scalar('bob/alice-Incorrect', bobIncorrect)
     return [eveIncorrect, bobIncorrect]
 
 def getEveLoss(eve, alice):

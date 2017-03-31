@@ -1,5 +1,6 @@
 import tensorflow as tf
 import Utilities as utils
+import numpy as np
 
 class Network():
     def __init__(self, messageLength, name):
@@ -16,7 +17,11 @@ class Network():
             conv = tf.nn.conv1d(input, filter, stride = stride, padding = pad)
             if (bias):
                 conv = conv + self._bias(numOutputChannels)
-            return activation(conv)
+
+            value = activation(conv)
+            tf.summary.histogram('weights', filter)
+            tf.summary.histogram('activations', value)
+            return value
       
     def _convLayer2D(self, input, outputFilters, filterDimX,filterDimY, strides, name, activation=tf.nn.elu):
         with tf.variable_scope(name):
@@ -38,7 +43,11 @@ class Network():
             ))
 
             conv = tf.nn.conv2d(input, weights, strides=[1, strides, strides, 1], padding="VALID")
-            return activation(conv + bias)
+            value = activation(conv + bias)
+            tf.summary.histogram('weights', weights)
+            tf.summary.histogram('bias', bias)
+            tf.summary.histogram('activations', value)
+            return value
    
 
     def _weightVar(self, shape):
@@ -70,6 +79,11 @@ class Network():
         """Concatenates text(ciphar or plain) with the key"""
         concatenated = tf.concat(1,(self._inputKey, utils.ensureRank2(self._inputMessage)))
         return concatenated
+
+    def _combineKeyAndTextRank4(self, key, messageLength):
+        """Concatenates text(ciphar or plain) with the key"""
+        concatenated = tf.concat(2,(utils.ensureRank3(self._inputKey), utils.ensureRank3(self._inputMessage)))
+        return tf.expand_dims(concatenated, 3)
 
     def getUpdateOp(self, loss, optimizer):
         """Returns a tensor that, when executed, applies the gradients to the correct network"""

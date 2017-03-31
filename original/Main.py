@@ -11,6 +11,8 @@ parser.add_argument('-message_length', default=16   , type=int, help="Length of 
 parser.add_argument('-batch_size'    , default=4096  , type=int, help="Batch size used for training ops")
 parser.add_argument('-optimizer'     , default='Adam', type=str, help="Optimizer to be used when applying gradients (adam,adadelta,adagrad,rmsprop)")
 parser.add_argument('-learning_rate' , default=0.0008, type=int, help="Learning rate to be used when applying gradients")
+parser.add_argument('-variantNet' , action= 'store_true', help="Use the variant nets")
+parser.add_argument('-tbPrefix', default = "_", type = str, help= "Prefix for tensorboard, if running multiple experiments")
 args = parser.parse_args()
 
 """Select optimizer"""
@@ -25,9 +27,16 @@ elif(args.optimizer.lower() == 'rmsprop'):
     optimizer = tf.train.RMSPropOptimizer(args.learning_rate)
 
 """Instantiate nets"""
-alice = nets.Encoder(args.message_length , 'aliceNet')
-bob   = nets.Decoder(args.message_length   , alice ,'aliceNet')
-eve   = nets.UnauthDecoder(args.message_length   , alice ,'aliceNet')
+if(args.variantNet):
+    print("Variant")
+    alice = nets.EncoderVariant(args.message_length, 'aliceNet')
+    bob = nets.DecoderVariant(args.message_length, alice, 'aliceNet')
+    eve = nets.UnauthDecoderVariant(args.message_length, alice, 'aliceNet')
+else:
+    print("Og Nets")
+    alice = nets.Encoder(args.message_length , 'aliceNet')
+    bob   = nets.Decoder(args.message_length   , alice ,'aliceNet')
+    eve   = nets.UnauthDecoder(args.message_length   , alice ,'aliceNet')
 
 """Calculate loss metrics"""
 aliceAndBobLoss =utils.getBobAliceLoss(bob, eve, alice, args.message_length)
@@ -40,14 +49,19 @@ turnGen = utils.getTurn(  alice.getUpdateOp(aliceAndBobLoss, optimizer)
                         )
 
 """Instantiate logger, provide command line args for context"""
-logger = utils.log(details = args._get_kwargs())
+#logger = utils.log(details = args._get_kwargs())
+
+
 
 """Begin training loop"""
 def train(numIters):
     with tf.Session() as sess:
+        merged = tf.summary.merge_all()
+        fileWriter = tf.summary.FileWriter(args.prefix+'tensorboard', sess.graph)
+
         dataGen    = utils.getData(args.message_length, args.batch_size)
-        logMetrics = utils.getLoggingMetrics(bob, eve, alice)
-        sess.run(tf.initialize_all_variables())
+        #logMetrics = utils.getLoggingMetrics(bob, eve, alice)
+        sess.run(tf.global_variables_initializer())
         
         for iter in range(args.num_iters):
             data = next(dataGen)
@@ -58,10 +72,8 @@ def train(numIters):
             updateOps = next(turnGen)
             sess.run(updateOps, feed_dict=feedDict)
             if(iter%100 == 0):
-                print(iter)
-                aliceAndBobLossEvaluated,eveLossEvaluated,eveIncorrect, bobIncorrect  =  sess.run([tf.reduce_mean(aliceAndBobLoss),tf.reduce_mean(eveLoss)] + logMetrics, feed_dict=feedDict)
-                logger.writeToFile([iter,aliceAndBobLossEvaluated,eveLossEvaluated,eveIncorrect, bobIncorrect])
-                print("Iteration %s | Alice/Bob Loss : %g | Eve Loss : %g | Eve Incorrect : %g | Bob Incorrect : %g"%(str(iter).zfill(6),aliceAndBobLossEvaluated, eveLossEvaluated,eveIncorrect,bobIncorrect))
+                summary, aliceAndBobLossEvaluated,eveLossEvaluated =  sess.run([merged, tf.reduce_mean(aliceAndBobLoss),tf.reduce_mean(eveLoss)], feed_dict=feedDict)
+                fileWriter.add_summary(summary, iter)
 
 
 train(args.num_iters)

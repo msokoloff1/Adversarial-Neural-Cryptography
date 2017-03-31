@@ -1,0 +1,6 @@
+batch_size-4096|learning_rate-0.0008|message_length-16|num_iters-10000|optimizer-Adam|variantNet-False
+Iteration,Alice-Bob/Loss,EveLoss,EveIncorrect,Alice/Bob-Incorrect,RunNumber
+0,6.65236,0.499984,0.499984,0.500015,9
+100,6.65235,0.500002,0.500002,0.500014,9
+200,6.65166,0.500042,0.500042,0.499905,9
+300,6.65231,0.5,0.5,0.499961,9
